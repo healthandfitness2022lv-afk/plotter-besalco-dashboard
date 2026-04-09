@@ -368,6 +368,60 @@
     .aprob-icon { font-size: 16px; }
     .aprob-label { color: var(--text-muted); font-size: 11px; }
     .aprob-val { font-weight: 700; font-size: 12px; }
+
+    /* ── Ranking señaléticas ── */
+    .ranking-filters {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      margin-bottom: 16px; align-items: center;
+    }
+    .ranking-chip {
+      padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      border: 1.5px solid var(--border); background: #fff;
+      color: var(--text-muted); cursor: pointer; transition: all .15s;
+      user-select: none;
+    }
+    .ranking-chip:hover { border-color: var(--primary); color: var(--primary); }
+    .ranking-chip.active {
+      background: var(--primary); border-color: var(--primary); color: #fff;
+    }
+    .ranking-list { display: flex; flex-direction: column; gap: 10px; }
+    .ranking-row {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .ranking-pos {
+      width: 28px; flex-shrink: 0; text-align: center;
+      font-size: 13px; font-weight: 700; color: var(--text-muted);
+    }
+    .ranking-img {
+      width: 40px; height: 40px; border-radius: 6px; object-fit: cover;
+      border: 1px solid var(--border); flex-shrink: 0; background: #edf2f7;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; overflow: hidden;
+    }
+    .ranking-img img { width: 100%; height: 100%; object-fit: cover; }
+    .ranking-info { flex: 1; min-width: 0; }
+    .ranking-name {
+      font-size: 13px; font-weight: 700; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .ranking-medidas {
+      font-size: 11px; color: var(--text-muted); margin-left: 6px;
+      font-weight: 400;
+    }
+    .ranking-bar-track {
+      height: 8px; background: #edf2f7; border-radius: 4px;
+      margin-top: 4px; overflow: hidden;
+    }
+    .ranking-bar-fill {
+      height: 100%; border-radius: 4px; transition: width .5s ease;
+    }
+    .ranking-qty {
+      font-size: 14px; font-weight: 700; color: var(--primary);
+      flex-shrink: 0; min-width: 36px; text-align: right;
+    }
+    .ranking-qty-label {
+      font-size: 10px; color: var(--text-muted); flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -480,6 +534,18 @@
       </div>
     </div>
 
+    <!-- Ranking señaléticas -->
+    <div class="card" style="margin-bottom:24px">
+      <div class="section-title">Señaléticas más solicitadas</div>
+      <div class="ranking-filters" id="ranking-filters">
+        <span class="ranking-chip active" data-tipo="">Todos</span>
+        <span class="ranking-chip" data-tipo="gigantografia">Gigantografía</span>
+        <span class="ranking-chip" data-tipo="señaletica">Señalética</span>
+        <span class="ranking-chip" data-tipo="sticker">Sticker</span>
+      </div>
+      <div class="ranking-list" id="ranking-list"></div>
+    </div>
+
     <!-- Tabla -->
     <div class="card">
       <div class="table-header">
@@ -554,6 +620,7 @@ let allJobs = [];
 let sortCol = 'fecha';
 let sortDir = 'desc';
 let activeJobId = null;
+let rankingTipo = ''; // filtro activo del ranking
 
 const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -1113,6 +1180,113 @@ document.getElementById('drawer-close').addEventListener('click', closeDrawer);
 document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
 
+// ── Normalización de grupos ───────────────────────────────
+// Devuelve {grupoId, grupoNombre} para unificar variantes conocidas.
+// Si no aplica, retorna null y se usa el nombre/id original.
+function normalizarGrupo(nombre) {
+  const n = nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (/responsable del.?area|rda\b/.test(n)) {
+    return { grupoId: 'rda', grupoNombre: 'RDA' };
+  }
+  return null;
+}
+
+// ── Ranking señaléticas ───────────────────────────────────
+function renderRanking(jobs) {
+  const acum = {}; // clave → { nombre, imagenUrl, cantidad, anchoCm, altoCm, maxCant }
+
+  jobs.forEach(job => {
+    job.items.forEach(item => {
+      if (rankingTipo && item.tipo !== rankingTipo) return;
+
+      const grupo = normalizarGrupo(item.nombre);
+      const clave     = grupo ? `grupo__${grupo.grupoId}` : (item.senaleticaId || item.nombre);
+      const nombre    = grupo ? grupo.grupoNombre : item.nombre;
+      const imagenUrl = item.imagenUrl || imgCache[item.senaleticaId] || null;
+      const qty       = item.cantidadSolicitada;
+
+      if (acum[clave]) {
+        acum[clave].cantidad += qty;
+        if (qty > acum[clave].maxCant) {
+          acum[clave].maxCant  = qty;
+          acum[clave].anchoCm  = item.anchoCm;
+          acum[clave].altoCm   = item.altoCm;
+        }
+        if (imagenUrl && !acum[clave].imagenUrl) acum[clave].imagenUrl = imagenUrl;
+      } else {
+        acum[clave] = { nombre, imagenUrl, cantidad: qty,
+                        anchoCm: item.anchoCm, altoCm: item.altoCm, maxCant: qty };
+      }
+    });
+  });
+
+  const lista = Object.values(acum).sort((a, b) => b.cantidad - a.cantidad);
+  const maxQty = lista[0]?.cantidad || 1;
+
+  const PODIO_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32'];
+  const PODIO_ICONS  = ['🥇', '🥈', '🥉'];
+
+  const container = document.getElementById('ranking-list');
+  container.innerHTML = '';
+
+  if (!lista.length) {
+    container.innerHTML = '<span style="font-size:13px;color:var(--text-muted)">Sin datos para el período seleccionado</span>';
+    return;
+  }
+
+  lista.slice(0, 15).forEach((entry, i) => {
+    const esPodio   = i < 3;
+    const barColor  = esPodio ? PODIO_COLORS[i] : 'var(--primary-light)';
+    const fraccion  = entry.cantidad / maxQty;
+
+    // Medidas: omitir decimales
+    const aCm = Math.trunc(entry.anchoCm);
+    const bCm = Math.trunc(entry.altoCm);
+    const medidasStr = (aCm > 0 && bCm > 0) ? `${aCm}×${bCm} cm` : '';
+
+    const row = document.createElement('div');
+    row.className = 'ranking-row';
+
+    // Posición
+    const posEl = document.createElement('div');
+    posEl.className = 'ranking-pos';
+    posEl.textContent = esPodio ? PODIO_ICONS[i] : `${i + 1}`;
+
+    // Imagen
+    const imgWrap = document.createElement('div');
+    imgWrap.className = 'ranking-img';
+    if (entry.imagenUrl) {
+      imgWrap.innerHTML = `<img src="${entry.imagenUrl}" alt="${entry.nombre}" onerror="this.parentNode.textContent='🖼️'">`;
+    } else {
+      imgWrap.textContent = '🖼️';
+    }
+
+    // Info: nombre + medidas + barra
+    const info = document.createElement('div');
+    info.className = 'ranking-info';
+    info.innerHTML = `
+      <div style="display:flex;align-items:baseline;gap:0;flex-wrap:wrap">
+        <span class="ranking-name">${entry.nombre}</span>
+        ${medidasStr ? `<span class="ranking-medidas">${medidasStr}</span>` : ''}
+      </div>
+      <div class="ranking-bar-track">
+        <div class="ranking-bar-fill" style="width:${Math.round(fraccion*100)}%;background:${barColor}"></div>
+      </div>
+    `;
+
+    // Cantidad
+    const qtyEl = document.createElement('div');
+    qtyEl.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0';
+    qtyEl.innerHTML = `<span class="ranking-qty">${entry.cantidad}</span><span class="ranking-qty-label">uds</span>`;
+
+    row.appendChild(posEl);
+    row.appendChild(imgWrap);
+    row.appendChild(info);
+    row.appendChild(qtyEl);
+    container.appendChild(row);
+  });
+}
+
 // ── Render completo ───────────────────────────────────────
 function renderAll() {
   const filtered = applyFilters(allJobs);
@@ -1120,6 +1294,7 @@ function renderAll() {
   renderDonut(filtered);
   renderDeptoChart(filtered);
   renderTimeline(filtered);
+  renderRanking(filtered);
   renderTable(filtered);
 }
 
@@ -1174,6 +1349,16 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   });
   document.getElementById('search-table').value = '';
   renderAll();
+});
+
+// ── Chips de tipo para ranking ────────────────────────────
+document.getElementById('ranking-filters').addEventListener('click', e => {
+  const chip = e.target.closest('.ranking-chip');
+  if (!chip) return;
+  document.querySelectorAll('#ranking-filters .ranking-chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  rankingTipo = chip.dataset.tipo;
+  renderRanking(applyFilters(allJobs));
 });
 
 // ── Firebase listener ─────────────────────────────────────
