@@ -644,8 +644,7 @@ function costoPorM2(tipo) {
 }
 
 function hayCostos() {
-  const { papelPorM2, pvc3mmPorM2, pvc5mmPorM2, tintaPorM2 } = costConfig;
-  return papelPorM2 > 0 || pvc3mmPorM2 > 0 || pvc5mmPorM2 > 0 || tintaPorM2 > 0;
+  return allJobs.some(j => j.totalCosto > 0);
 }
 
 function fmtMoney(v) {
@@ -726,7 +725,7 @@ function parseItems(raw) {
         nota:        e.nota ?? '',
       })),
       areaPapelM2: (ancho/100) * (alto/100) * solicitada,
-      get costoTotal() { return this.areaPapelM2 * costoPorM2(this.tipo); },
+      costoTotal:  parseFloat(i.costoGuardado ?? 0) || 0,
     };
   });
 }
@@ -750,7 +749,7 @@ function jobFromDoc(doc) {
     totalSolicitado: items.reduce((a,i) => a + i.cantidadSolicitada, 0),
     totalEntregado:  items.reduce((a,i) => a + i.cantidadEntregada,  0),
     totalM2:         items.reduce((a,i) => a + i.areaPapelM2, 0),
-    get totalCosto() { return this.items.reduce((a,i) => a + i.costoTotal, 0); },
+    totalCosto:      items.reduce((a,i) => a + i.costoTotal, 0),
   };
 }
 
