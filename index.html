@@ -89,6 +89,8 @@
     .kpi.accent-orange  .kpi-value { color: var(--orange); }
     .kpi.accent-red     .kpi-value { color: var(--red); }
     .kpi.accent-primary .kpi-value { color: var(--primary); }
+    .kpi.accent-teal    .kpi-value { color: var(--teal); }
+    .kpi.accent-purple  .kpi-value { color: var(--purple); }
 
     /* ── Section title ── */
     .section-title {
@@ -501,6 +503,17 @@
         <span class="kpi-value" id="kpi-m2">0</span>
         <span class="kpi-sub">m² total</span>
       </div>
+      <div class="kpi accent-teal">
+        <span class="kpi-label">Costo total estimado</span>
+        <span class="kpi-value" id="kpi-costo">$0</span>
+        <span class="kpi-sub" id="kpi-costo-sub">según configuración</span>
+      </div>
+    </div>
+
+    <!-- Desglose de costos por tipo -->
+    <div class="card" id="costos-card" style="margin-bottom:24px;display:none">
+      <div class="section-title">Costos estimados por tipo</div>
+      <div id="costos-tipos" style="display:flex;flex-wrap:wrap;gap:16px"></div>
     </div>
 
     <!-- Gráficos -->
@@ -570,6 +583,7 @@
               <th data-col="progreso">Progreso</th>
               <th data-col="estado">Estado</th>
               <th data-col="m2">m²</th>
+              <th data-col="costo">Costo est.</th>
             </tr>
           </thead>
           <tbody id="jobs-tbody"></tbody>
@@ -600,6 +614,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getFirestore, collection, onSnapshot, query, orderBy, doc as fsDoc, getDoc }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
+
 const firebaseConfig = {
   apiKey:            'AIzaSyA7mFME1f84Q8YoWZ68Bi_16QxYyNW6BSc',
   authDomain:        'invbunker.firebaseapp.com',
@@ -614,6 +629,29 @@ const db  = getFirestore(app);
 
 // ── Cache de imágenes señaléticas (fallback para items viejos sin imagenUrl) ──
 const imgCache = {};
+
+// ── Configuración de costos ───────────────────────────────
+let costConfig = { papelPorM2: 0, pvc3mmPorM2: 0, pvc5mmPorM2: 0, tintaPorM2: 0 };
+
+function costoPorM2(tipo) {
+  const { papelPorM2, pvc3mmPorM2, pvc5mmPorM2, tintaPorM2 } = costConfig;
+  switch ((tipo || '').toLowerCase()) {
+    case 'sticker':      return papelPorM2 + tintaPorM2;
+    case 'señaletica':   return papelPorM2 + pvc3mmPorM2 + tintaPorM2;
+    case 'gigantografia':return papelPorM2 + pvc5mmPorM2 + tintaPorM2;
+    default:             return papelPorM2 + tintaPorM2;
+  }
+}
+
+function hayCostos() {
+  const { papelPorM2, pvc3mmPorM2, pvc5mmPorM2, tintaPorM2 } = costConfig;
+  return papelPorM2 > 0 || pvc3mmPorM2 > 0 || pvc5mmPorM2 > 0 || tintaPorM2 > 0;
+}
+
+function fmtMoney(v) {
+  if (!v || v === 0) return '$0';
+  return '$' + Math.round(v).toLocaleString('es-CL');
+}
 
 // ── Estado global ─────────────────────────────────────────
 let allJobs = [];
@@ -688,6 +726,7 @@ function parseItems(raw) {
         nota:        e.nota ?? '',
       })),
       areaPapelM2: (ancho/100) * (alto/100) * solicitada,
+      get costoTotal() { return this.areaPapelM2 * costoPorM2(this.tipo); },
     };
   });
 }
@@ -711,6 +750,7 @@ function jobFromDoc(doc) {
     totalSolicitado: items.reduce((a,i) => a + i.cantidadSolicitada, 0),
     totalEntregado:  items.reduce((a,i) => a + i.cantidadEntregada,  0),
     totalM2:         items.reduce((a,i) => a + i.areaPapelM2, 0),
+    get totalCosto() { return this.items.reduce((a,i) => a + i.costoTotal, 0); },
   };
 }
 
@@ -768,6 +808,13 @@ function renderKPIs(jobs) {
   document.getElementById('kpi-unidades').textContent    = unidades.toLocaleString('es-CL');
   document.getElementById('kpi-unidades-sub').innerHTML  = tipoKpiHtml || `${entregadas.toLocaleString('es-CL')} entregadas`;
   document.getElementById('kpi-m2').textContent          = m2.toFixed(1);
+
+  // KPI de costos
+  const costoTotal = jobs.reduce((a,j) => a + j.totalCosto, 0);
+  document.getElementById('kpi-costo').textContent   = fmtMoney(costoTotal);
+  document.getElementById('kpi-costo-sub').textContent = hayCostos()
+    ? 'según configuración de costos'
+    : 'configura los costos en la app';
 }
 
 // ── Donut ─────────────────────────────────────────────────
@@ -804,6 +851,46 @@ function renderDonut(jobs) {
       <span class="legend-label">${labels[key]}</span>
       <span class="legend-count">${count}</span>`;
     legend.appendChild(div);
+  });
+}
+
+// ── Costos por tipo ──────────────────────────────────────
+function renderCostosTipos(jobs) {
+  const card = document.getElementById('costos-card');
+  if (!hayCostos()) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  const tipos = ['sticker', 'señaletica', 'gigantografia'];
+  const labels = { sticker: 'Sticker', señaletica: 'Señalética', gigantografia: 'Gigantografía' };
+  const colors = { sticker: '#dd6b20', señaletica: '#2c7a7b', gigantografia: '#805ad5' };
+  const icons  = { sticker: '🏷️', señaletica: '🪧', gigantografia: '🖼️' };
+
+  const acum = {};
+  tipos.forEach(t => { acum[t] = { m2: 0, costo: 0, uds: 0 }; });
+
+  jobs.forEach(j => j.items.forEach(it => {
+    const t = (it.tipo || '').toLowerCase();
+    if (acum[t]) {
+      acum[t].m2   += it.areaPapelM2;
+      acum[t].costo += it.costoTotal;
+      acum[t].uds  += it.cantidadSolicitada;
+    }
+  }));
+
+  const container = document.getElementById('costos-tipos');
+  container.innerHTML = '';
+  tipos.forEach(t => {
+    const d = acum[t];
+    if (d.uds === 0) return;
+    const el = document.createElement('div');
+    el.style.cssText = `flex:1;min-width:180px;background:#fafbfc;border:1px solid var(--border);border-radius:10px;padding:16px;border-left:4px solid ${colors[t]}`;
+    el.innerHTML = `
+      <div style="font-size:13px;font-weight:700;color:${colors[t]};margin-bottom:8px">${icons[t]} ${labels[t]}</div>
+      <div style="font-size:22px;font-weight:800;color:var(--text)">${fmtMoney(d.costo)}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${d.m2.toFixed(1)} m² · ${d.uds.toLocaleString('es-CL')} uds</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${fmtMoney(costoPorM2(t))}/m²</div>
+    `;
+    container.appendChild(el);
   });
 }
 
@@ -875,6 +962,7 @@ function renderTable(jobs) {
     let va = a[sortCol], vb = b[sortCol];
     if (sortCol==='fecha')    { va=a.fecha.getTime(); vb=b.fecha.getTime(); }
     if (sortCol==='progreso') { va=a.totalSolicitado?a.totalEntregado/a.totalSolicitado:0; vb=b.totalSolicitado?b.totalEntregado/b.totalSolicitado:0; }
+    if (sortCol==='costo')    { va=a.totalCosto; vb=b.totalCosto; }
     if (sortCol==='items')    { va=a.items.length; vb=b.items.length; }
     if (typeof va==='string') { va=va.toLowerCase(); vb=vb.toLowerCase(); }
     if (va<vb) return sortDir==='asc'?-1:1;
@@ -913,6 +1001,7 @@ function renderTable(jobs) {
       </td>
       <td>${estadoBadge(j.estado)}</td>
       <td style="text-align:right">${j.totalM2.toFixed(2)}</td>
+      <td style="text-align:right;font-weight:700;color:var(--teal)">${hayCostos() ? fmtMoney(j.totalCosto) : '—'}</td>
     `;
     tr.addEventListener('click', () => openDrawer(j));
     tbody.appendChild(tr);
@@ -1007,6 +1096,7 @@ function buildDrawerContent(job) {
       </div>
     </div>
     <div class="d-row" style="margin-top:8px"><span class="d-label">Papel estimado</span><span class="d-val">${job.totalM2.toFixed(2)} m²</span></div>
+    ${hayCostos() ? `<div class="d-row"><span class="d-label">Costo estimado</span><span class="d-val" style="font-weight:700;color:var(--teal)">${fmtMoney(job.totalCosto)}</span></div>` : ''}
   `;
   body.appendChild(prog);
 
@@ -1102,8 +1192,9 @@ function buildItemCard(item, idx) {
       <span style="display:inline-block;background:#edf2f7;border-radius:4px;padding:1px 6px;margin-right:4px;font-size:11px">📐 ${ancho} × ${alto}</span>
       <span style="display:inline-block;background:#edf2f7;border-radius:4px;padding:1px 6px;font-size:11px">📄 ${area}</span>
     </div>
-    <div style="margin-top:6px;display:flex;align-items:center;gap:8px">
+    <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span style="font-size:13px;font-weight:700;color:var(--primary)">${item.cantidadSolicitada} uds solicitadas</span>
+      ${hayCostos() ? `<span style="font-size:12px;font-weight:700;color:var(--teal);background:#e6fffa;border-radius:4px;padding:1px 7px">💰 ${fmtMoney(item.costoTotal)}</span>` : ''}
     </div>
     <span class="etapa-badge" style="margin-top:6px;background:${etapaCol}20;border:1px solid ${etapaCol}60;color:${etapaCol}">
       ${etapaLbl}
@@ -1291,6 +1382,7 @@ function renderRanking(jobs) {
 function renderAll() {
   const filtered = applyFilters(allJobs);
   renderKPIs(filtered);
+  renderCostosTipos(filtered);
   renderDonut(filtered);
   renderDeptoChart(filtered);
   renderTimeline(filtered);
@@ -1360,6 +1452,25 @@ document.getElementById('ranking-filters').addEventListener('click', e => {
   rankingTipo = chip.dataset.tipo;
   renderRanking(applyFilters(allJobs));
 });
+
+// ── Listener de configuración de costos ───────────────────
+onSnapshot(fsDoc(db, 'app_config', 'costos'),
+  snap => {
+    if (snap.exists()) {
+      const d = snap.data();
+      costConfig = {
+        papelPorM2:  parseFloat(d.papelPorM2  ?? 0) || 0,
+        pvc3mmPorM2: parseFloat(d.pvc3mmPorM2 ?? 0) || 0,
+        pvc5mmPorM2: parseFloat(d.pvc5mmPorM2 ?? 0) || 0,
+        tintaPorM2:  parseFloat(d.tintaPorM2  ?? 0) || 0,
+      };
+    } else {
+      costConfig = { papelPorM2: 0, pvc3mmPorM2: 0, pvc5mmPorM2: 0, tintaPorM2: 0 };
+    }
+    if (allJobs.length > 0) renderAll();
+  },
+  () => {} // silenciar error si el doc no existe aún
+);
 
 // ── Firebase listener ─────────────────────────────────────
 const q = query(collection(db, 'plotter_jobs'), orderBy('fecha', 'desc'));
