@@ -1295,9 +1295,11 @@ function renderRanking(jobs) {
       const nombre    = grupo ? grupo.grupoNombre : item.nombre;
       const imagenUrl = item.imagenUrl || imgCache[item.senaleticaId] || null;
       const qty       = item.cantidadSolicitada;
+      const costo     = item.costoTotal;
 
       if (acum[clave]) {
         acum[clave].cantidad += qty;
+        acum[clave].costo    += costo;
         if (qty > acum[clave].maxCant) {
           acum[clave].maxCant  = qty;
           acum[clave].anchoCm  = item.anchoCm;
@@ -1305,7 +1307,7 @@ function renderRanking(jobs) {
         }
         if (imagenUrl && !acum[clave].imagenUrl) acum[clave].imagenUrl = imagenUrl;
       } else {
-        acum[clave] = { nombre, imagenUrl, cantidad: qty,
+        acum[clave] = { nombre, imagenUrl, cantidad: qty, costo,
                         anchoCm: item.anchoCm, altoCm: item.altoCm, maxCant: qty };
       }
     });
@@ -1365,10 +1367,14 @@ function renderRanking(jobs) {
       </div>
     `;
 
-    // Cantidad
+    // Cantidad + costo
     const qtyEl = document.createElement('div');
-    qtyEl.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0';
-    qtyEl.innerHTML = `<span class="ranking-qty">${entry.cantidad}</span><span class="ranking-qty-label">uds</span>`;
+    qtyEl.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;gap:2px';
+    qtyEl.innerHTML = `
+      <span class="ranking-qty">${entry.cantidad}</span>
+      <span class="ranking-qty-label">uds</span>
+      ${hayCostos() ? `<span style="font-size:11px;font-weight:700;color:var(--teal)">${fmtMoney(entry.costo)}</span>` : ''}
+    `;
 
     row.appendChild(posEl);
     row.appendChild(imgWrap);
