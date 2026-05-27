@@ -555,6 +555,7 @@
         <span class="ranking-chip" data-tipo="gigantografia">Gigantografía</span>
         <span class="ranking-chip" data-tipo="señaletica">Señalética</span>
         <span class="ranking-chip" data-tipo="sticker">Sticker</span>
+        <span class="ranking-chip" data-tipo="imantado">Imantado</span>
       </div>
       <div class="ranking-list" id="ranking-list"></div>
     </div>
@@ -631,15 +632,15 @@ const db  = getFirestore(app);
 const imgCache = {};
 
 // ── Configuración de costos ───────────────────────────────
-let costConfig = { papelPorM2: 0, pvc3mmPorM2: 0, pvc5mmPorM2: 0, tintaPorM2: 0 };
+let costConfig = { papelPorM2: 0, pvc3mmPorM2: 0, pvc5mmPorM2: 0, tintaPorM2: 0, baseImantadaPorM2: 0 };
 
 function costoPorM2(tipo) {
-  const { papelPorM2, pvc3mmPorM2, pvc5mmPorM2, tintaPorM2 } = costConfig;
-  // Normalizar: quitar tildes y pasar a minúsculas para comparación robusta
+  const { papelPorM2, pvc3mmPorM2, pvc5mmPorM2, tintaPorM2, baseImantadaPorM2 } = costConfig;
   const t = (tipo || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   if (t === 'sticker')                          return papelPorM2 + tintaPorM2;
-  if (t === 'senaletica' || t === 'senalética') return papelPorM2 + pvc3mmPorM2 + tintaPorM2;
+  if (t === 'senaletica' || t === 'senaletica') return papelPorM2 + pvc3mmPorM2 + tintaPorM2;
   if (t === 'gigantografia')                    return papelPorM2 + pvc5mmPorM2 + tintaPorM2;
+  if (t === 'imantado')                         return papelPorM2 + baseImantadaPorM2 + tintaPorM2;
   return papelPorM2 + tintaPorM2;
 }
 
@@ -859,10 +860,10 @@ function renderCostosTipos(jobs) {
   if (!hayCostos()) { card.style.display = 'none'; return; }
   card.style.display = '';
 
-  const tipos = ['sticker', 'señaletica', 'gigantografia'];
-  const labels = { sticker: 'Sticker', señaletica: 'Señalética', gigantografia: 'Gigantografía' };
-  const colors = { sticker: '#dd6b20', señaletica: '#2c7a7b', gigantografia: '#805ad5' };
-  const icons  = { sticker: '🏷️', señaletica: '🪧', gigantografia: '🖼️' };
+  const tipos = ['sticker', 'señaletica', 'gigantografia', 'imantado'];
+  const labels = { sticker: 'Sticker', señaletica: 'Señalética', gigantografia: 'Gigantografía', imantado: 'Imantado' };
+  const colors = { sticker: '#dd6b20', señaletica: '#2c7a7b', gigantografia: '#805ad5', imantado: '#d53f8c' };
+  const icons  = { sticker: '🏷️', señaletica: '🪧', gigantografia: '🖼️', imantado: '🧲' };
 
   const acum = {};
   tipos.forEach(t => { acum[t] = { m2: 0, costo: 0, uds: 0 }; });
@@ -1464,14 +1465,15 @@ onSnapshot(fsDoc(db, 'app_config', 'costos'),
     if (snap.exists()) {
       const d = snap.data();
       costConfig = {
-        papelPorM2:  parseFloat(d.papelPorM2  ?? 0) || 0,
-        pvc3mmPorM2: parseFloat(d.pvc3mmPorM2 ?? 0) || 0,
-        pvc5mmPorM2: parseFloat(d.pvc5mmPorM2 ?? 0) || 0,
-        tintaPorM2:  parseFloat(d.tintaPorM2  ?? 0) || 0,
+        papelPorM2:        parseFloat(d.papelPorM2        ?? 0) || 0,
+        pvc3mmPorM2:       parseFloat(d.pvc3mmPorM2       ?? 0) || 0,
+        pvc5mmPorM2:       parseFloat(d.pvc5mmPorM2       ?? 0) || 0,
+        tintaPorM2:        parseFloat(d.tintaPorM2        ?? 0) || 0,
+        baseImantadaPorM2: parseFloat(d.baseImantadaPorM2 ?? 0) || 0,
       };
       console.log('[costos]', costConfig);
     } else {
-      costConfig = { papelPorM2: 0, pvc3mmPorM2: 0, pvc5mmPorM2: 0, tintaPorM2: 0 };
+      costConfig = { papelPorM2: 0, pvc3mmPorM2: 0, pvc5mmPorM2: 0, tintaPorM2: 0, baseImantadaPorM2: 0 };
       console.log('[costos] doc no existe en app_config/costos');
     }
     if (allJobs.length > 0) renderAll();
