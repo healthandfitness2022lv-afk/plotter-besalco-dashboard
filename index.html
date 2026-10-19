@@ -69,6 +69,28 @@
       font-size: 13px; cursor: pointer; color: var(--text-muted); transition: background .15s;
     }
     #btn-reset:hover { background: #edf2f7; }
+    .filters input[type=date] {
+      padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px;
+      font-size: 13px; background: var(--card); color: var(--text); font-family: inherit;
+    }
+    .btn-action {
+      padding: 7px 14px; border: 1px solid var(--primary); border-radius: 8px;
+      background: var(--card); color: var(--primary); font-size: 13px; cursor: pointer;
+    }
+    .btn-action:hover { background: #ebf4ff; }
+    #periodo-banner:not(:empty) {
+      background: #ebf4ff; border: 1px solid #bee3f8; color: var(--primary-dark);
+      border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 14px;
+    }
+    #periodo-banner strong { font-size: 16px; }
+    @media print {
+      header { position: static; box-shadow: none; }
+      .filters, #search-table, .seg, .more-btn, #drawer-overlay, #detail-drawer, #lightbox, .no-print { display: none !important; }
+      body { background: #fff; }
+      .card, .kpi { box-shadow: none; border: 1px solid var(--border); break-inside: avoid; }
+      main { padding: 0; max-width: none; }
+      tbody tr { cursor: default; }
+    }
 
     /* ── KPI cards ── */
     .kpi-grid {
@@ -424,6 +446,45 @@
     .ranking-qty-label {
       font-size: 10px; color: var(--text-muted); flex-shrink: 0;
     }
+
+    /* ── Avance / pendientes ── */
+    .card-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+    .card-head .section-title { margin-bottom:0; }
+    .seg { display:inline-flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+    .seg button { border:0; background:#fff; padding:6px 12px; font-size:12px; color:var(--text-muted); cursor:pointer; }
+    .seg button.active { background:var(--primary); color:#fff; }
+    .av-list { display:flex; flex-direction:column; }
+    .av-row {
+      display:grid; grid-template-columns: minmax(0,2.2fr) minmax(120px,1.4fr) 70px 80px;
+      gap:12px; align-items:center; padding:10px 6px; border-bottom:1px solid var(--border);
+      cursor:pointer; font-size:13px;
+    }
+    .av-row:hover { background:#f7fafc; }
+    .av-row:last-child { border-bottom:none; }
+    .av-title { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .av-sub { font-size:11px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+    .av-pct { font-weight:800; text-align:right; }
+    .av-pend { text-align:right; color:var(--orange); font-weight:700; }
+    .av-pend.ok { color:var(--green); }
+    .av-track { height:8px; background:#edf2f7; border-radius:4px; overflow:hidden; }
+    .av-fill { height:100%; border-radius:4px; }
+    .dias { display:inline-block; padding:0 6px; border-radius:4px; font-size:10px; font-weight:700; margin-left:6px; vertical-align:1px; }
+    .dias.warn { background:#fffaf0; color:#c05621; }
+    .dias.late { background:#fff5f5; color:#c53030; }
+    .av-head { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); font-weight:600; cursor:default; border-bottom:2px solid var(--border); }
+    .av-head:hover { background:none; }
+    .falta-row { display:grid; grid-template-columns: 40px minmax(0,1fr) 60px 60px 70px; gap:10px; align-items:center; padding:8px 4px; border-bottom:1px solid var(--border); font-size:13px; }
+    .falta-row:last-child { border-bottom:none; }
+    .falta-row .num { text-align:right; font-weight:700; }
+    .empty { color:var(--text-muted); font-size:13px; padding:8px 0; }
+    .more-btn { margin-top:10px; border:1px solid var(--border); background:#fff; border-radius:8px; padding:6px 12px; font-size:12px; color:var(--primary); cursor:pointer; }
+    @media (max-width: 640px) {
+      .av-row { grid-template-columns: minmax(0,1fr) 54px 64px; }
+      .av-row .av-bar { display:none; }
+      .falta-row { grid-template-columns: 34px minmax(0,1fr) 50px 56px; }
+      .falta-row .col-stock { display:none; }
+      #search-table { width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -445,7 +506,12 @@
 
   <div id="dashboard">
     <!-- Filtros -->
+    <div id="periodo-banner"></div>
     <div class="filters">
+      <label>Desde:</label>
+      <input type="date" id="filter-desde" />
+      <label>Hasta:</label>
+      <input type="date" id="filter-hasta" />
       <label>Año:</label>
       <select id="filter-year"><option value="">Todos</option></select>
       <label>Mes:</label>
@@ -469,6 +535,8 @@
       <label>Departamento:</label>
       <select id="filter-depto"><option value="">Todos</option></select>
       <button id="btn-reset">✕ Limpiar filtros</button>
+      <button id="btn-copy" class="btn-action">🔗 Copiar link</button>
+      <button id="btn-print" class="btn-action">🖨️ Imprimir / PDF</button>
     </div>
 
     <!-- KPIs -->
@@ -493,6 +561,11 @@
         <span class="kpi-value" id="kpi-completadas">0</span>
         <span class="kpi-sub">entregadas</span>
       </div>
+      <div class="kpi accent-purple">
+        <span class="kpi-label">Avance global</span>
+        <span class="kpi-value" id="kpi-avance">0%</span>
+        <span class="kpi-sub" id="kpi-avance-sub"></span>
+      </div>
       <div class="kpi">
         <span class="kpi-label">Unidades solicitadas</span>
         <span class="kpi-value" id="kpi-unidades">0</span>
@@ -507,6 +580,42 @@
         <span class="kpi-label">Costo total estimado</span>
         <span class="kpi-value" id="kpi-costo">$0</span>
         <span class="kpi-sub" id="kpi-costo-sub">según configuración</span>
+      </div>
+    </div>
+
+    <!-- Avance por solicitud (activas) -->
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-head">
+        <div class="section-title">Avance por solicitud</div>
+        <div class="seg" id="av-mode">
+          <button data-mode="activas" class="active">Activas</button>
+          <button data-mode="todas">Todas</button>
+        </div>
+      </div>
+      <div class="av-list" id="avance-list"></div>
+    </div>
+
+    <div class="charts-row">
+      <!-- Qué falta entregar -->
+      <div class="card">
+        <div class="section-title">Qué falta entregar</div>
+        <p style="font-size:12px;color:var(--text-muted);margin:-6px 0 10px">Unidades pendientes de solicitudes activas, cruzadas con el stock</p>
+        <div class="falta-row av-head">
+          <span></span><span>Señalética</span><span style="text-align:right">Faltan</span>
+          <span class="col-stock" style="text-align:right">Stock</span><span style="text-align:right">Producir</span>
+        </div>
+        <div id="falta-list"></div>
+      </div>
+      <!-- Avance por grupo -->
+      <div class="card">
+        <div class="card-head">
+          <div class="section-title">Avance por</div>
+          <div class="seg" id="grupo-mode">
+            <button data-mode="departamento" class="active">Departamento</button>
+            <button data-mode="solicitante">Solicitante</button>
+          </div>
+        </div>
+        <div id="grupo-list"></div>
       </div>
     </div>
 
@@ -569,7 +678,7 @@
           <input type="text" id="search-table" placeholder="🔍 Buscar…" />
         </div>
       </div>
-      <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">
+      <p class="no-print" style="font-size:12px;color:var(--text-muted);margin-bottom:10px">
         👆 Haz clic en cualquier fila para ver el detalle completo
       </p>
       <div class="table-wrap">
@@ -638,7 +747,7 @@ function costoPorM2(tipo) {
   const { papelPorM2, pvc3mmPorM2, pvc5mmPorM2, tintaPorM2, baseImantadaPorM2 } = costConfig;
   const t = (tipo || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   if (t === 'sticker')                          return papelPorM2 + tintaPorM2;
-  if (t === 'senaletica' || t === 'senaletica') return papelPorM2 + pvc3mmPorM2 + tintaPorM2;
+  if (t === 'senaletica')                       return papelPorM2 + pvc3mmPorM2 + tintaPorM2;
   if (t === 'gigantografia')                    return papelPorM2 + pvc5mmPorM2 + tintaPorM2;
   if (t === 'imantado')                         return papelPorM2 + baseImantadaPorM2 + tintaPorM2;
   return papelPorM2 + tintaPorM2;
@@ -653,8 +762,21 @@ function fmtMoney(v) {
   return '$' + Math.round(v).toLocaleString('es-CL');
 }
 
+// Escapa texto ingresado por usuarios antes de insertarlo como HTML.
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
 // ── Estado global ─────────────────────────────────────────
 let allJobs = [];
+let stockMap = {};          // senaleticaId → unidades en inventario_stock
+let avanceMode = 'activas'; // 'activas' | 'todas'
+let grupoMode = 'departamento';
+let avanceLimit = 15;
+const esActiva = j => j.estado === 'pendiente' || j.estado === 'en_proceso';
+const pctDe = (e, s) => s ? Math.min(1, e / s) : 0;
+const diasDesde = d => Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
+const colorPct = p => p >= 1 ? 'var(--green)' : p >= .5 ? 'var(--blue)' : p > 0 ? 'var(--orange)' : '#a0aec0';
 let sortCol = 'fecha';
 let sortDir = 'desc';
 let activeJobId = null;
@@ -726,9 +848,28 @@ function parseItems(raw) {
         nota:        e.nota ?? '',
       })),
       areaPapelM2: (ancho/100) * (alto/100) * solicitada,
-      costoTotal:  parseFloat(i.costoGuardado ?? 0) || 0,
+      // Valor persistido en Firestore (puede estar desactualizado o ausente).
+      // Se usa solo como respaldo; el costo mostrado se recalcula en vivo
+      // desde las medidas + la config de costos actual (ver recomputarCostos).
+      costoGuardado: parseFloat(i.costoGuardado ?? 0) || 0,
+      costoTotal:  0,
     };
   });
+}
+
+// Recalcula el costo de cada item en vivo usando la config de costos vigente.
+// Así el dashboard refleja al instante: nuevas solicitudes, ediciones y
+// borrados, sin depender del botón "Recalcular" de la app.
+function recomputarCostos() {
+  const hayConfig = Object.values(costConfig).some(v => v > 0);
+  for (const job of allJobs) {
+    for (const it of job.items) {
+      const enVivo = it.areaPapelM2 * costoPorM2(it.tipo);
+      // Si aún no cargó la config de costos, cae al valor guardado.
+      it.costoTotal = hayConfig ? enVivo : it.costoGuardado;
+    }
+    job.totalCosto = job.items.reduce((a, i) => a + i.costoTotal, 0);
+  }
 }
 
 function jobFromDoc(doc) {
@@ -761,12 +902,23 @@ function getFilters() {
     month:  document.getElementById('filter-month').value,
     estado: document.getElementById('filter-estado').value,
     depto:  document.getElementById('filter-depto').value,
+    desde:  document.getElementById('filter-desde').value,
+    hasta:  document.getElementById('filter-hasta').value,
     search: document.getElementById('search-table').value.toLowerCase(),
   };
 }
+// 'YYYY-MM-DD' → Date local (inicio o fin del día)
+function diaLocal(s, finDelDia) {
+  const [y, m, d] = s.split('-').map(Number);
+  return finDelDia ? new Date(y, m - 1, d, 23, 59, 59, 999) : new Date(y, m - 1, d);
+}
 function applyFilters(jobs) {
   const f = getFilters();
+  const desde = f.desde ? diaLocal(f.desde, false) : null;
+  const hasta = f.hasta ? diaLocal(f.hasta, true) : null;
   return jobs.filter(j => {
+    if (desde && j.fecha < desde) return false;
+    if (hasta && j.fecha > hasta) return false;
     if (f.year   && String(j.fecha.getFullYear()) !== f.year)  return false;
     if (f.month  && String(j.fecha.getMonth()+1)  !== f.month) return false;
     if (f.estado && j.estado !== f.estado)                      return false;
@@ -808,6 +960,14 @@ function renderKPIs(jobs) {
   document.getElementById('kpi-unidades').textContent    = unidades.toLocaleString('es-CL');
   document.getElementById('kpi-unidades-sub').innerHTML  = tipoKpiHtml || `${entregadas.toLocaleString('es-CL')} entregadas`;
   document.getElementById('kpi-m2').textContent          = m2.toFixed(1);
+
+  // KPI de avance (sin canceladas)
+  const vigentes = jobs.filter(j => j.estado !== 'cancelada');
+  const sol = vigentes.reduce((a,j) => a + j.totalSolicitado, 0);
+  const ent = vigentes.reduce((a,j) => a + Math.min(j.totalEntregado, j.totalSolicitado), 0);
+  document.getElementById('kpi-avance').textContent = `${Math.round(pctDe(ent, sol) * 100)}%`;
+  document.getElementById('kpi-avance-sub').textContent =
+    `${(sol - ent).toLocaleString('es-CL')} uds por entregar`;
 
   // KPI de costos
   const costoTotal = jobs.reduce((a,j) => a + j.totalCosto, 0);
@@ -989,14 +1149,14 @@ function renderTable(jobs) {
       .join('');
     tr.innerHTML = `
       <td>${fmt(j.fecha)}</td>
-      <td>${j.departamento||'—'}</td>
-      <td>${j.solicitante||'—'}</td>
+      <td>${esc(j.departamento||'—')}</td>
+      <td>${esc(j.solicitante||'—')}</td>
       <td style="text-align:center">${j.items.length}</td>
       <td><div style="display:flex;flex-wrap:wrap;gap:2px;align-items:center">${tipoHtml || j.totalSolicitado}</div></td>
       <td>
         <div style="display:flex;align-items:center;gap:4px">
           <div class="progress-mini"><div class="progress-mini-fill ${done?'done':''}" style="width:${Math.round(pct*100)}%"></div></div>
-          <span style="font-size:11px;color:var(--text-muted)">${j.totalEntregado}/${j.totalSolicitado}</span>
+          <span style="font-size:11px;color:var(--text-muted)"><strong style="color:${colorPct(pct)}">${Math.round(pct*100)}%</strong> ${j.totalEntregado}/${j.totalSolicitado}</span>
         </div>
       </td>
       <td>${estadoBadge(j.estado)}</td>
@@ -1384,10 +1544,191 @@ function renderRanking(jobs) {
   });
 }
 
+// ── Avance por solicitud ──────────────────────────────────
+function renderAvance(jobs) {
+  const list = document.getElementById('avance-list');
+  const base = avanceMode === 'activas' ? jobs.filter(esActiva) : jobs.filter(j => j.estado !== 'cancelada');
+  // Primero las menos avanzadas; a igual avance, las más antiguas.
+  const rows = base
+    .map(j => ({ j, pct: pctDe(j.totalEntregado, j.totalSolicitado), dias: diasDesde(j.fecha) }))
+    .sort((a, b) => a.pct - b.pct || a.j.fecha - b.j.fecha);
+
+  if (!rows.length) {
+    list.innerHTML = `<div class="empty">${avanceMode === 'activas' ? '🎉 No hay solicitudes activas' : 'Sin datos'}</div>`;
+    return;
+  }
+
+  list.innerHTML = `<div class="av-row av-head">
+      <span>Solicitud · qué falta</span><span class="av-bar">Avance</span>
+      <span style="text-align:right">%</span><span style="text-align:right">Faltan</span>
+    </div>`;
+
+  rows.slice(0, avanceLimit).forEach(({ j, pct, dias }) => {
+    const faltan = j.items.filter(i => i.cantidadSolicitada > i.cantidadEntregada);
+    const falta  = j.totalSolicitado - Math.min(j.totalEntregado, j.totalSolicitado);
+    const resumen = faltan.length
+      ? faltan.slice(0, 3).map(i => `${esc(i.nombre)} (${i.cantidadSolicitada - i.cantidadEntregada})`).join(', ')
+        + (faltan.length > 3 ? ` +${faltan.length - 3} más` : '')
+      : 'Todo entregado';
+    const diasCls = !esActiva(j) ? '' : dias > 14 ? 'late' : dias > 7 ? 'warn' : '';
+    const row = document.createElement('div');
+    row.className = 'av-row';
+    row.innerHTML = `
+      <div style="min-width:0">
+        <div class="av-title">${esc(j.folio)} · ${esc(j.departamento || '—')} · ${esc(j.solicitante || '—')}
+          ${esActiva(j) ? `<span class="dias ${diasCls}">${dias} d</span>` : ''}</div>
+        <div class="av-sub" title="${esc(faltan.map(i => i.nombre).join(', '))}">${resumen}</div>
+      </div>
+      <div class="av-bar"><div class="av-track"><div class="av-fill" style="width:${Math.round(pct*100)}%;background:${colorPct(pct)}"></div></div></div>
+      <div class="av-pct" style="color:${colorPct(pct)}">${Math.round(pct*100)}%</div>
+      <div class="av-pend ${falta ? '' : 'ok'}">${falta ? `${falta} uds` : '✓'}</div>`;
+    row.addEventListener('click', () => openDrawer(j));
+    list.appendChild(row);
+  });
+
+  if (rows.length > avanceLimit) {
+    const btn = document.createElement('button');
+    btn.className = 'more-btn';
+    btn.textContent = `Ver ${rows.length - avanceLimit} más`;
+    btn.addEventListener('click', () => { avanceLimit += 30; renderAvance(applyFilters(allJobs)); });
+    list.appendChild(btn);
+  }
+}
+
+// ── Qué falta entregar (por señalética) ───────────────────
+function renderFaltantes(jobs) {
+  const acum = {};
+  jobs.filter(esActiva).forEach(j => j.items.forEach(it => {
+    const pend = it.cantidadSolicitada - it.cantidadEntregada;
+    if (pend <= 0) return;
+    const k = it.senaleticaId || it.nombre;
+    acum[k] ??= { id: it.senaleticaId, nombre: it.nombre, img: it.imagenUrl || imgCache[it.senaleticaId], pend: 0, sols: new Set() };
+    acum[k].pend += pend;
+    acum[k].sols.add(j.folio);
+  }));
+  const lista = Object.values(acum).sort((a, b) => b.pend - a.pend);
+  const cont = document.getElementById('falta-list');
+  if (!lista.length) { cont.innerHTML = '<div class="empty">Nada pendiente 🎉</div>'; return; }
+  cont.innerHTML = '';
+  lista.slice(0, 20).forEach(e => {
+    const stock = stockMap[e.id] ?? 0;
+    const producir = Math.max(0, e.pend - stock);
+    const row = document.createElement('div');
+    row.className = 'falta-row';
+    row.innerHTML = `
+      <div class="ranking-img">${e.img ? `<img src="${esc(e.img)}" alt="" onerror="this.parentNode.textContent='🖼️'">` : '🖼️'}</div>
+      <div style="min-width:0">
+        <div class="av-title">${esc(e.nombre)}</div>
+        <div class="av-sub">${e.sols.size} solicitud${e.sols.size !== 1 ? 'es' : ''}</div>
+      </div>
+      <div class="num" style="color:var(--orange)">${e.pend}</div>
+      <div class="num col-stock" style="color:var(--text-muted)">${stock}</div>
+      <div class="num" style="color:${producir ? 'var(--red)' : 'var(--green)'}">${producir || '✓'}</div>`;
+    cont.appendChild(row);
+  });
+  if (lista.length > 20) {
+    cont.insertAdjacentHTML('beforeend', `<div class="empty">+${lista.length - 20} señaléticas más con pendientes</div>`);
+  }
+}
+
+// ── Avance por departamento / solicitante ─────────────────
+function renderGrupos(jobs) {
+  const acum = {};
+  jobs.filter(j => j.estado !== 'cancelada').forEach(j => {
+    const k = (j[grupoMode] || '—').trim() || '—';
+    acum[k] ??= { nombre: k, sol: 0, ent: 0, n: 0, activas: 0 };
+    acum[k].sol += j.totalSolicitado;
+    acum[k].ent += Math.min(j.totalEntregado, j.totalSolicitado);
+    acum[k].n++;
+    if (esActiva(j)) acum[k].activas++;
+  });
+  // Primero los que más tienen pendiente.
+  const lista = Object.values(acum).sort((a, b) => (b.sol - b.ent) - (a.sol - a.ent) || b.n - a.n);
+  const cont = document.getElementById('grupo-list');
+  if (!lista.length) { cont.innerHTML = '<div class="empty">Sin datos</div>'; return; }
+  cont.innerHTML = '';
+  lista.slice(0, 12).forEach(g => {
+    const pct = pctDe(g.ent, g.sol);
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.style.marginBottom = '10px';
+    row.innerHTML = `
+      <span class="bar-label" title="${esc(g.nombre)}">${esc(g.nombre)}</span>
+      <div style="flex:1;min-width:0">
+        <div class="av-track"><div class="av-fill" style="width:${Math.round(pct*100)}%;background:${colorPct(pct)}"></div></div>
+        <div class="av-sub">${g.n} solicitud${g.n!==1?'es':''}${g.activas ? ` · ${g.activas} activa${g.activas!==1?'s':''}` : ''} · faltan ${g.sol - g.ent} de ${g.sol} uds</div>
+      </div>
+      <span class="bar-count" style="color:${colorPct(pct)};min-width:42px">${Math.round(pct*100)}%</span>`;
+    cont.appendChild(row);
+  });
+}
+
+function bindSeg(id, onChange) {
+  document.getElementById(id).addEventListener('click', e => {
+    const b = e.target.closest('button[data-mode]');
+    if (!b) return;
+    document.querySelectorAll(`#${id} button`).forEach(x => x.classList.toggle('active', x === b));
+    onChange(b.dataset.mode);
+  });
+}
+bindSeg('av-mode', m => { avanceMode = m; avanceLimit = 15; renderAvance(applyFilters(allJobs)); });
+bindSeg('grupo-mode', m => { grupoMode = m; renderGrupos(applyFilters(allJobs)); });
+
+// ── Período en el link (para compartir) ───────────────────
+const URL_FILTROS = { desde: 'filter-desde', hasta: 'filter-hasta', anio: 'filter-year', mes: 'filter-month', estado: 'filter-estado', depto: 'filter-depto' };
+const urlInicial = new URLSearchParams(location.search);
+
+function aplicarFiltrosDeUrl() {
+  // Se llama después de poblar los selects (año/depto dependen de los datos).
+  Object.entries(URL_FILTROS).forEach(([k, id]) => {
+    const v = urlInicial.get(k);
+    if (v) document.getElementById(id).value = v;
+  });
+}
+function guardarFiltrosEnUrl() {
+  const p = new URLSearchParams();
+  Object.entries(URL_FILTROS).forEach(([k, id]) => {
+    const v = document.getElementById(id).value;
+    if (v) p.set(k, v);
+  });
+  const qs = p.toString();
+  history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+}
+function fmtIso(s) { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; }
+
+function renderBanner(jobs) {
+  const f = getFilters();
+  const el = document.getElementById('periodo-banner');
+  if (!f.desde && !f.hasta) { el.innerHTML = ''; return; }
+  const rango = f.desde && f.hasta ? `${fmtIso(f.desde)} al ${fmtIso(f.hasta)}`
+              : f.desde ? `desde el ${fmtIso(f.desde)}` : `hasta el ${fmtIso(f.hasta)}`;
+  const vig = jobs.filter(j => j.estado !== 'cancelada');
+  const sol = vig.reduce((a, j) => a + j.totalSolicitado, 0);
+  const ent = vig.reduce((a, j) => a + Math.min(j.totalEntregado, j.totalSolicitado), 0);
+  const comp = jobs.filter(j => j.estado === 'completada').length;
+  el.innerHTML = `📅 Período: <strong>${rango}</strong> · ${jobs.length} solicitud${jobs.length !== 1 ? 'es' : ''}
+    (${comp} completada${comp !== 1 ? 's' : ''}) · ${ent} de ${sol} unidades entregadas
+    (<strong>${Math.round(pctDe(ent, sol) * 100)}%</strong>) · faltan ${sol - ent}`;
+}
+
+document.getElementById('btn-copy').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-copy');
+  try { await navigator.clipboard.writeText(location.href); btn.textContent = '✓ Link copiado'; }
+  catch { prompt('Copia este link:', location.href); }
+  setTimeout(() => { btn.textContent = '🔗 Copiar link'; }, 2000);
+});
+document.getElementById('btn-print').addEventListener('click', () => window.print());
+
 // ── Render completo ───────────────────────────────────────
 function renderAll() {
+  recomputarCostos();
+  guardarFiltrosEnUrl();
   const filtered = applyFilters(allJobs);
+  renderBanner(filtered);
   renderKPIs(filtered);
+  renderAvance(filtered);
+  renderFaltantes(filtered);
+  renderGrupos(filtered);
   renderCostosTipos(filtered);
   renderDonut(filtered);
   renderDeptoChart(filtered);
@@ -1437,12 +1778,12 @@ document.querySelectorAll('thead th[data-col]').forEach(th => {
 document.querySelector('thead th[data-col="fecha"]').classList.add('sort-desc');
 
 // ── Filtros eventos ───────────────────────────────────────
-['filter-year','filter-month','filter-estado','filter-depto'].forEach(id => {
+['filter-year','filter-month','filter-estado','filter-depto','filter-desde','filter-hasta'].forEach(id => {
   document.getElementById(id).addEventListener('change', renderAll);
 });
 document.getElementById('search-table').addEventListener('input', renderAll);
 document.getElementById('btn-reset').addEventListener('click', () => {
-  ['filter-year','filter-month','filter-estado','filter-depto'].forEach(id => {
+  ['filter-year','filter-month','filter-estado','filter-depto','filter-desde','filter-hasta'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('search-table').value = '';
@@ -1481,7 +1822,18 @@ onSnapshot(fsDoc(db, 'app_config', 'costos'),
   err => console.error('[costos] error listener:', err)
 );
 
+// ── Stock (para saber cuánto falta producir) ──────────────
+onSnapshot(collection(db, 'inventario_stock'),
+  snap => {
+    stockMap = {};
+    snap.docs.forEach(d => { stockMap[d.id] = parseInt(d.data().cantidad) || 0; });
+    if (allJobs.length > 0) renderFaltantes(applyFilters(allJobs));
+  },
+  err => console.warn('[stock] sin acceso a inventario_stock:', err.message)
+);
+
 // ── Firebase listener ─────────────────────────────────────
+let filtrosUrlAplicados = false;
 const q = query(collection(db, 'plotter_jobs'), orderBy('fecha', 'desc'));
 onSnapshot(q,
   snap => {
@@ -1491,6 +1843,15 @@ onSnapshot(q,
     document.getElementById('last-updated').textContent =
       'Actualizado: ' + new Date().toLocaleTimeString('es-CL');
     populateFilters();
+    if (!filtrosUrlAplicados) {
+      filtrosUrlAplicados = true;
+      aplicarFiltrosDeUrl();
+      // Con un período elegido, el reporte muestra todas sus solicitudes, no solo las activas.
+      if (urlInicial.get('desde') || urlInicial.get('hasta')) {
+        avanceMode = 'todas';
+        document.querySelectorAll('#av-mode button').forEach(b => b.classList.toggle('active', b.dataset.mode === 'todas'));
+      }
+    }
     renderAll();
 
     // Si hay un drawer abierto, actualizarlo con datos frescos
