@@ -83,7 +83,65 @@
       border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 14px;
     }
     #periodo-banner strong { font-size: 16px; }
+    /* ── Layout con menú lateral ── */
+    #layout { display: flex; align-items: flex-start; min-height: calc(100vh - 60px); }
+    #sidebar {
+      position: sticky; top: 60px; width: 210px; flex-shrink: 0; height: calc(100vh - 60px);
+      background: var(--card); border-right: 1px solid var(--border);
+      padding: 16px 10px; display: flex; flex-direction: column; gap: 4px;
+    }
+    #sidebar a {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px;
+      color: var(--text); text-decoration: none; font-size: 14px; font-weight: 500;
+    }
+    #sidebar a:hover { background: #f1f5f9; }
+    #sidebar a.active { background: #ebf4ff; color: var(--primary); font-weight: 700; }
+    #sidebar .ico { width: 20px; text-align: center; }
+    .nav-badge:not(:empty) {
+      margin-left: auto; background: var(--orange); color: #fff; border-radius: 10px;
+      padding: 1px 8px; font-size: 11px; font-weight: 700;
+    }
+    .nav-badge.muted:not(:empty) { background: #e2e8f0; color: var(--text-muted); }
+    #layout main { flex: 1; min-width: 0; margin: 0; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .view-title { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+    .view-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+    .view-title + .kpi-grid, .view-title + .card, .view-title + .charts-row { margin-top: 14px; }
+    @media (max-width: 800px) {
+      #layout { display: block; }
+      #sidebar {
+        position: sticky; top: 60px; z-index: 150; width: auto; height: auto;
+        flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--border);
+        padding: 6px 8px;
+      }
+      #sidebar a { white-space: nowrap; padding: 8px 10px; font-size: 13px; }
+      #sidebar .nav-badge:not(:empty) { margin-left: 4px; }
+    }
+
+    /* ── Tarjetas de pendientes ── */
+    .pend-card { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+    .pend-head { display: flex; gap: 12px; align-items: center; padding: 12px 14px; background: #fafbfc; cursor: pointer; flex-wrap: wrap; }
+    .pend-head:hover { background: #f1f5f9; }
+    .pend-main { flex: 1; min-width: 220px; }
+    .pend-folio { font-weight: 800; font-size: 14px; }
+    .pend-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .pend-prog { width: 180px; }
+    .pend-prog .lbl { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+    .chip { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-left: 4px; }
+    .chip-warn { background: #fffaf0; color: #c05621; border: 1px solid #fbd38d; }
+    .chip-ok { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+    .pend-items { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .pend-items td, .pend-items th { padding: 7px 14px; border-top: 1px solid var(--border); text-align: left; }
+    .pend-items th { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); font-weight: 600; background: #fff; cursor: default; }
+    .pend-items .n { text-align: right; width: 70px; }
+    .pend-items tr.done td { color: var(--text-muted); }
+    .sin-stock .col-stock, .sin-stock .col-prod { display: none; }
+    .sin-stock .falta-row { grid-template-columns: 40px minmax(0,1fr) 70px; }
+    @media (max-width: 640px) { .pend-prog { width: 100%; } .pend-items .hide-sm { display: none; } }
+
     @media print {
+      #sidebar { display: none !important; }
       header { position: static; box-shadow: none; }
       .filters, #search-table, .seg, .more-btn, #drawer-overlay, #detail-drawer, #lightbox, .no-print { display: none !important; }
       body { background: #fff; }
@@ -497,6 +555,14 @@
   </div>
 </header>
 
+<div id="layout">
+<nav id="sidebar">
+  <a href="#resumen" data-view="resumen"><span class="ico">📊</span><span>Resumen</span></a>
+  <a href="#pendientes" data-view="pendientes"><span class="ico">⏳</span><span>Pendientes</span><span class="nav-badge" id="badge-pendientes"></span></a>
+  <a href="#solicitudes" data-view="solicitudes"><span class="ico">📋</span><span>Solicitudes</span><span class="nav-badge muted" id="badge-solicitudes"></span></a>
+  <a href="#entregas" data-view="entregas"><span class="ico">📦</span><span>Entregas</span></a>
+  <a href="#senaleticas" data-view="senaleticas"><span class="ico">🪧</span><span>Señaléticas</span></a>
+</nav>
 <main>
   <div id="loading">
     <div class="spinner"></div>
@@ -539,6 +605,9 @@
       <button id="btn-print" class="btn-action">🖨️ Imprimir / PDF</button>
     </div>
 
+    <!-- ═══ VISTA: RESUMEN ═══ -->
+    <section class="view" data-view="resumen">
+      <h2 class="view-title">Resumen</h2>
     <!-- KPIs -->
     <div class="kpi-grid">
       <div class="kpi accent-primary">
@@ -583,29 +652,7 @@
       </div>
     </div>
 
-    <!-- Avance por solicitud (activas) -->
-    <div class="card" style="margin-bottom:24px">
-      <div class="card-head">
-        <div class="section-title">Avance por solicitud</div>
-        <div class="seg" id="av-mode">
-          <button data-mode="activas" class="active">Activas</button>
-          <button data-mode="todas">Todas</button>
-        </div>
-      </div>
-      <div class="av-list" id="avance-list"></div>
-    </div>
-
     <div class="charts-row">
-      <!-- Qué falta entregar -->
-      <div class="card">
-        <div class="section-title">Qué falta entregar</div>
-        <p style="font-size:12px;color:var(--text-muted);margin:-6px 0 10px">Unidades pendientes de solicitudes activas, cruzadas con el stock</p>
-        <div class="falta-row av-head">
-          <span></span><span>Señalética</span><span style="text-align:right">Faltan</span>
-          <span class="col-stock" style="text-align:right">Stock</span><span style="text-align:right">Producir</span>
-        </div>
-        <div id="falta-list"></div>
-      </div>
       <!-- Avance por grupo -->
       <div class="card">
         <div class="card-head">
@@ -617,16 +664,6 @@
         </div>
         <div id="grupo-list"></div>
       </div>
-    </div>
-
-    <!-- Desglose de costos por tipo -->
-    <div class="card" id="costos-card" style="margin-bottom:24px;display:none">
-      <div class="section-title">Costos estimados por tipo</div>
-      <div id="costos-tipos" style="display:flex;flex-wrap:wrap;gap:16px"></div>
-    </div>
-
-    <!-- Gráficos -->
-    <div class="charts-row">
       <div class="card">
         <div class="section-title">Solicitudes por estado</div>
         <div class="donut-wrap">
@@ -642,9 +679,16 @@
           <div class="legend" id="estado-legend"></div>
         </div>
       </div>
+    </div>
+
+    <div class="charts-row">
       <div class="card">
         <div class="section-title">Solicitudes por departamento</div>
         <div class="bar-chart" id="depto-chart"></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Entregas recientes</div>
+        <div id="resumen-entregas"></div>
       </div>
     </div>
 
@@ -655,18 +699,54 @@
         <div class="timeline-zero"></div>
       </div>
     </div>
+    </section>
 
-    <!-- Ranking señaléticas -->
-    <div class="card" style="margin-bottom:24px">
-      <div class="section-title">Señaléticas más solicitadas</div>
-      <div class="ranking-filters" id="ranking-filters">
-        <span class="ranking-chip active" data-tipo="">Todos</span>
-        <span class="ranking-chip" data-tipo="gigantografia">Gigantografía</span>
-        <span class="ranking-chip" data-tipo="señaletica">Señalética</span>
-        <span class="ranking-chip" data-tipo="sticker">Sticker</span>
-        <span class="ranking-chip" data-tipo="imantado">Imantado</span>
+    <!-- ═══ VISTA: PENDIENTES ═══ -->
+    <section class="view" data-view="pendientes">
+      <h2 class="view-title">Pendientes</h2>
+      <p class="view-sub">Solicitudes sin entregar o entregadas parcialmente, las más antiguas primero.</p>
+      <div class="kpi-grid">
+        <div class="kpi accent-orange"><span class="kpi-label">Solicitudes pendientes</span><span class="kpi-value" id="pk-total">0</span><span class="kpi-sub" id="pk-total-sub"></span></div>
+        <div class="kpi accent-red"><span class="kpi-label">Unidades por entregar</span><span class="kpi-value" id="pk-uds">0</span><span class="kpi-sub" id="pk-uds-sub"></span></div>
+        <div class="kpi accent-purple"><span class="kpi-label">Avance de lo pendiente</span><span class="kpi-value" id="pk-avance">0%</span><span class="kpi-sub" id="pk-avance-sub"></span></div>
+        <div class="kpi"><span class="kpi-label">Más antigua</span><span class="kpi-value" id="pk-dias">—</span><span class="kpi-sub" id="pk-dias-sub"></span></div>
+        <div class="kpi accent-blue"><span class="kpi-label">Sin aprobación completa</span><span class="kpi-value" id="pk-aprob">0</span><span class="kpi-sub">falta admin. o jefe adm.</span></div>
       </div>
-      <div class="ranking-list" id="ranking-list"></div>
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-head">
+          <div class="section-title">Detalle de pendientes</div>
+          <div class="seg" id="pend-mode">
+            <button data-mode="todas" class="active">Todas</button>
+            <button data-mode="sin">Sin entregas</button>
+            <button data-mode="parcial">Parciales</button>
+          </div>
+        </div>
+        <div id="pend-list"></div>
+      </div>
+      <div class="card sin-stock" id="falta-card">
+        <div class="section-title">Qué falta entregar</div>
+        <p style="font-size:12px;color:var(--text-muted);margin:-6px 0 10px">Unidades pendientes agrupadas por señalética: lo que hay que producir o entregar</p>
+        <div class="falta-row av-head">
+          <span></span><span>Señalética</span><span style="text-align:right">Faltan</span>
+          <span class="col-stock" style="text-align:right">Stock</span><span class="col-prod" style="text-align:right">Producir</span>
+        </div>
+        <div id="falta-list"></div>
+      </div>
+    </section>
+
+    <!-- ═══ VISTA: SOLICITUDES ═══ -->
+    <section class="view" data-view="solicitudes">
+      <h2 class="view-title">Solicitudes</h2>
+    <!-- Avance por solicitud (activas) -->
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-head">
+        <div class="section-title">Avance por solicitud</div>
+        <div class="seg" id="av-mode">
+          <button data-mode="todas" class="active">Todas</button>
+          <button data-mode="activas">Activas</button>
+        </div>
+      </div>
+      <div class="av-list" id="avance-list"></div>
     </div>
 
     <!-- Tabla -->
@@ -700,8 +780,64 @@
         </table>
       </div>
     </div>
+    </section>
+
+    <!-- ═══ VISTA: ENTREGAS ═══ -->
+    <section class="view" data-view="entregas">
+      <h2 class="view-title">Entregas</h2>
+      <p class="view-sub">Entregas registradas. Con período elegido se filtran por la fecha de entrega.</p>
+      <div class="kpi-grid">
+        <div class="kpi accent-green"><span class="kpi-label">Entregas registradas</span><span class="kpi-value" id="ek-n">0</span><span class="kpi-sub" id="ek-n-sub"></span></div>
+        <div class="kpi accent-primary"><span class="kpi-label">Unidades entregadas</span><span class="kpi-value" id="ek-uds">0</span><span class="kpi-sub" id="ek-uds-sub"></span></div>
+        <div class="kpi"><span class="kpi-label">Solicitudes completadas</span><span class="kpi-value" id="ek-comp">0</span><span class="kpi-sub">en el período</span></div>
+        <div class="kpi accent-teal"><span class="kpi-label">Tiempo promedio</span><span class="kpi-value" id="ek-tiempo">—</span><span class="kpi-sub">de solicitud a 1ª entrega</span></div>
+      </div>
+      <div class="charts-row">
+        <div class="card">
+          <div class="section-title">Unidades entregadas por departamento</div>
+          <div class="bar-chart" id="ent-depto"></div>
+        </div>
+        <div class="card">
+          <div class="section-title">Quién recibió</div>
+          <div class="bar-chart" id="ent-recibe"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title">Registro de entregas</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Fecha</th><th>Folio</th><th>Departamento</th><th>Señalética</th><th style="text-align:right">Cant.</th><th>Recibido por</th><th>Nota</th></tr></thead>
+            <tbody id="entregas-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ VISTA: SEÑALÉTICAS ═══ -->
+    <section class="view" data-view="senaleticas">
+      <h2 class="view-title">Señaléticas y costos</h2>
+    <!-- Desglose de costos por tipo -->
+    <div class="card" id="costos-card" style="margin-bottom:24px;display:none">
+      <div class="section-title">Costos estimados por tipo</div>
+      <div id="costos-tipos" style="display:flex;flex-wrap:wrap;gap:16px"></div>
+    </div>
+
+    <!-- Ranking señaléticas -->
+    <div class="card" style="margin-bottom:24px">
+      <div class="section-title">Señaléticas más solicitadas</div>
+      <div class="ranking-filters" id="ranking-filters">
+        <span class="ranking-chip active" data-tipo="">Todos</span>
+        <span class="ranking-chip" data-tipo="gigantografia">Gigantografía</span>
+        <span class="ranking-chip" data-tipo="señaletica">Señalética</span>
+        <span class="ranking-chip" data-tipo="sticker">Sticker</span>
+        <span class="ranking-chip" data-tipo="imantado">Imantado</span>
+      </div>
+      <div class="ranking-list" id="ranking-list"></div>
+    </div>
+    </section>
   </div>
 </main>
+</div>
 
 <!-- ── Overlay + Drawer ── -->
 <div id="drawer-overlay"></div>
@@ -770,7 +906,7 @@ function esc(s) {
 // ── Estado global ─────────────────────────────────────────
 let allJobs = [];
 let stockMap = {};          // senaleticaId → unidades en inventario_stock
-let avanceMode = 'activas'; // 'activas' | 'todas'
+let avanceMode = 'todas'; // 'activas' | 'todas'
 let grupoMode = 'departamento';
 let avanceLimit = 15;
 const esActiva = j => j.estado === 'pendiente' || j.estado === 'en_proceso';
@@ -912,15 +1048,20 @@ function diaLocal(s, finDelDia) {
   const [y, m, d] = s.split('-').map(Number);
   return finDelDia ? new Date(y, m - 1, d, 23, 59, 59, 999) : new Date(y, m - 1, d);
 }
-function applyFilters(jobs) {
+// Rango de fechas activo (desde/hasta + año/mes) para comparar una fecha cualquiera.
+function enRango(d, f = getFilters()) {
+  if (f.desde && d < diaLocal(f.desde, false)) return false;
+  if (f.hasta && d > diaLocal(f.hasta, true)) return false;
+  if (f.year  && String(d.getFullYear()) !== f.year)  return false;
+  if (f.month && String(d.getMonth()+1)  !== f.month) return false;
+  return true;
+}
+// sinFecha: aplica todo menos el rango de fechas (la vista Entregas filtra
+// por fecha de entrega, no por fecha de la solicitud).
+function applyFilters(jobs, { sinFecha = false } = {}) {
   const f = getFilters();
-  const desde = f.desde ? diaLocal(f.desde, false) : null;
-  const hasta = f.hasta ? diaLocal(f.hasta, true) : null;
   return jobs.filter(j => {
-    if (desde && j.fecha < desde) return false;
-    if (hasta && j.fecha > hasta) return false;
-    if (f.year   && String(j.fecha.getFullYear()) !== f.year)  return false;
-    if (f.month  && String(j.fecha.getMonth()+1)  !== f.month) return false;
+    if (!sinFecha && !enRango(j.fecha, f)) return false;
     if (f.estado && j.estado !== f.estado)                      return false;
     if (f.depto  && j.departamento !== f.depto)                 return false;
     if (f.search) {
@@ -1623,7 +1764,7 @@ function renderFaltantes(jobs) {
       </div>
       <div class="num" style="color:var(--orange)">${e.pend}</div>
       <div class="num col-stock" style="color:var(--text-muted)">${stock}</div>
-      <div class="num" style="color:${producir ? 'var(--red)' : 'var(--green)'}">${producir || '✓'}</div>`;
+      <div class="num col-prod" style="color:${producir ? 'var(--red)' : 'var(--green)'}">${producir || '✓'}</div>`;
     cont.appendChild(row);
   });
   if (lista.length > 20) {
@@ -1692,7 +1833,7 @@ function guardarFiltrosEnUrl() {
     if (v) p.set(k, v);
   });
   const qs = p.toString();
-  history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+  history.replaceState(null, '', (qs ? `?${qs}` : location.pathname) + location.hash);
 }
 function fmtIso(s) { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; }
 
@@ -1719,12 +1860,177 @@ document.getElementById('btn-copy').addEventListener('click', async () => {
 });
 document.getElementById('btn-print').addEventListener('click', () => window.print());
 
+// ═══════════════════════════════════════════════
+// VISTA PENDIENTES
+// ═══════════════════════════════════════════════
+let pendMode = 'todas';
+const faltaDe = j => j.totalSolicitado - Math.min(j.totalEntregado, j.totalSolicitado);
+const esPendiente = j => j.estado !== 'cancelada' && faltaDe(j) > 0;
+
+function renderPendientes(jobs) {
+  const pend = jobs.filter(esPendiente).sort((a, b) => a.fecha - b.fecha);
+  const parciales = pend.filter(j => j.totalEntregado > 0);
+  const sol = pend.reduce((a, j) => a + j.totalSolicitado, 0);
+  const falta = pend.reduce((a, j) => a + faltaDe(j), 0);
+  const sinAprob = pend.filter(j => !j.aprobadoAdminContrato || !j.aprobadoJefeAdministrativo).length;
+
+  document.getElementById('pk-total').textContent = pend.length;
+  document.getElementById('pk-total-sub').textContent = `${pend.length - parciales.length} sin entregas · ${parciales.length} parcial${parciales.length !== 1 ? 'es' : ''}`;
+  document.getElementById('pk-uds').textContent = falta.toLocaleString('es-CL');
+  document.getElementById('pk-uds-sub').textContent = `de ${sol.toLocaleString('es-CL')} solicitadas`;
+  document.getElementById('pk-avance').textContent = `${Math.round(pctDe(sol - falta, sol) * 100)}%`;
+  document.getElementById('pk-avance-sub').textContent = `${(sol - falta).toLocaleString('es-CL')} uds ya entregadas`;
+  document.getElementById('pk-dias').textContent = pend.length ? `${diasDesde(pend[0].fecha)} d` : '—';
+  document.getElementById('pk-dias-sub').textContent = pend.length ? `${pend[0].folio} · ${pend[0].departamento}` : 'sin pendientes';
+  document.getElementById('pk-aprob').textContent = sinAprob;
+
+  const lista = pend.filter(j => pendMode === 'todas' || (pendMode === 'parcial' ? j.totalEntregado > 0 : j.totalEntregado === 0));
+  const cont = document.getElementById('pend-list');
+  if (!lista.length) { cont.innerHTML = '<div class="empty">🎉 No hay solicitudes en esta categoría</div>'; return; }
+  cont.innerHTML = '';
+  lista.forEach(j => {
+    const pct = pctDe(j.totalEntregado, j.totalSolicitado);
+    const dias = diasDesde(j.fecha);
+    const diasCls = dias > 14 ? 'late' : dias > 7 ? 'warn' : '';
+    const aprob = [
+      !j.aprobadoAdminContrato ? '<span class="chip chip-warn">Falta aprob. admin. contrato</span>' : '',
+      !j.aprobadoJefeAdministrativo ? '<span class="chip chip-warn">Falta aprob. jefe adm.</span>' : '',
+    ].join('');
+    const card = document.createElement('div');
+    card.className = 'pend-card';
+    card.innerHTML = `
+      <div class="pend-head">
+        <div class="pend-main">
+          <div class="pend-folio">${esc(j.folio)} ${estadoBadge(j.estado)} <span class="dias ${diasCls}">${dias} días</span></div>
+          <div class="pend-meta">${fmt(j.fecha)} · ${esc(j.departamento || '—')} · ${esc(j.solicitante || '—')}${aprob}</div>
+        </div>
+        <div class="pend-prog">
+          <div class="lbl"><span>${j.totalEntregado}/${j.totalSolicitado} uds</span><strong style="color:${colorPct(pct)}">${Math.round(pct*100)}%</strong></div>
+          <div class="av-track"><div class="av-fill" style="width:${Math.round(pct*100)}%;background:${colorPct(pct)}"></div></div>
+        </div>
+      </div>
+      <table class="pend-items">
+        <thead><tr><th>Señalética</th><th class="hide-sm">Etapa</th><th class="n">Pedidas</th><th class="n">Entregadas</th><th class="n">Faltan</th></tr></thead>
+        <tbody>${j.items.map(it => {
+          const f = Math.max(0, it.cantidadSolicitada - it.cantidadEntregada);
+          return `<tr class="${f ? '' : 'done'}">
+            <td>${esc(it.nombre)}</td>
+            <td class="hide-sm"><span style="color:${etapaColor(it.etapaActual)};font-weight:600">${etapaLabel(it.etapaActual)}</span></td>
+            <td class="n">${it.cantidadSolicitada}</td>
+            <td class="n">${it.cantidadEntregada}</td>
+            <td class="n" style="font-weight:700;color:${f ? 'var(--orange)' : 'var(--green)'}">${f || '✓'}</td></tr>`;
+        }).join('')}</tbody>
+      </table>`;
+    card.querySelector('.pend-head').addEventListener('click', () => openDrawer(j));
+    cont.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// VISTA ENTREGAS
+// ═══════════════════════════════════════════════
+function entregasDe(jobs) {
+  const f = getFilters();
+  const out = [];
+  jobs.forEach(j => j.items.forEach(it => it.entregas.forEach(e => {
+    if (enRango(e.fecha, f)) out.push({ ...e, job: j, item: it });
+  })));
+  return out.sort((a, b) => b.fecha - a.fecha);
+}
+
+function barras(contId, map, color) {
+  const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const cont = document.getElementById(contId);
+  if (!sorted.length) { cont.innerHTML = '<div class="empty">Sin entregas en el período</div>'; return; }
+  const max = sorted[0][1] || 1;
+  cont.innerHTML = sorted.map(([k, v]) => `<div class="bar-row">
+      <span class="bar-label" title="${esc(k)}">${esc(k)}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${v / max * 100}%;background:${color}"></div></div>
+      <span class="bar-count">${v}</span></div>`).join('');
+}
+
+function renderEntregas(jobsSinFecha) {
+  const ents = entregasDe(jobsSinFecha);
+  const uds = ents.reduce((a, e) => a + e.cantidad, 0);
+  const jobsCon = new Set(ents.map(e => e.job.id));
+  document.getElementById('ek-n').textContent = ents.length;
+  document.getElementById('ek-n-sub').textContent = `en ${jobsCon.size} solicitud${jobsCon.size !== 1 ? 'es' : ''}`;
+  document.getElementById('ek-uds').textContent = uds.toLocaleString('es-CL');
+  const receptores = new Set(ents.map(e => e.recibidoPor).filter(Boolean));
+  document.getElementById('ek-uds-sub').textContent = `recibido por ${receptores.size} persona${receptores.size !== 1 ? 's' : ''}`;
+
+  // Completadas: su última entrega cae en el período.
+  const f = getFilters();
+  const comp = jobsSinFecha.filter(j => {
+    if (j.estado !== 'completada') return false;
+    const fechas = j.items.flatMap(i => i.entregas.map(e => e.fecha));
+    return fechas.length && enRango(new Date(Math.max(...fechas)), f);
+  });
+  document.getElementById('ek-comp').textContent = comp.length;
+
+  // Días desde la solicitud hasta la primera entrega.
+  const tiempos = [...jobsCon].map(id => {
+    const j = jobsSinFecha.find(x => x.id === id);
+    const primera = Math.min(...j.items.flatMap(i => i.entregas.map(e => e.fecha.getTime())));
+    return Math.max(0, (primera - j.fecha.getTime()) / 86400000);
+  });
+  document.getElementById('ek-tiempo').textContent = tiempos.length
+    ? `${(tiempos.reduce((a, b) => a + b, 0) / tiempos.length).toFixed(1)} d` : '—';
+
+  const porDepto = {}, porRecibe = {};
+  ents.forEach(e => {
+    const d = e.job.departamento || '—'; porDepto[d] = (porDepto[d] || 0) + e.cantidad;
+    const r = e.recibidoPor || 'Sin registrar'; porRecibe[r] = (porRecibe[r] || 0) + e.cantidad;
+  });
+  barras('ent-depto', porDepto, 'var(--green)');
+  barras('ent-recibe', porRecibe, 'var(--teal)');
+
+  const tbody = document.getElementById('entregas-tbody');
+  tbody.innerHTML = ents.length ? '' : '<tr><td colspan="7" class="empty">Sin entregas en el período</td></tr>';
+  ents.slice(0, 300).forEach(e => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${fmt(e.fecha)}</td><td>${esc(e.job.folio)}</td><td>${esc(e.job.departamento || '—')}</td>
+      <td>${esc(e.item.nombre)}</td><td style="text-align:right;font-weight:700;color:var(--green)">${e.cantidad}</td>
+      <td>${esc(e.recibidoPor || '—')}</td><td style="color:var(--text-muted)">${esc(e.nota || '')}</td>`;
+    tr.addEventListener('click', () => openDrawer(e.job));
+    tbody.appendChild(tr);
+  });
+
+  // Mini resumen en la vista Resumen
+  const rec = document.getElementById('resumen-entregas');
+  rec.innerHTML = ents.length
+    ? ents.slice(0, 7).map(e => `<div class="entrega-row"><span class="entrega-icon">📦</span>
+        <span class="entrega-fecha">${fmt(e.fecha)}</span><span class="entrega-cant">+${e.cantidad}</span>
+        <span class="entrega-quien">${esc(e.item.nombre)} · ${esc(e.job.folio)}</span></div>`).join('')
+      + `<a href="#entregas" style="font-size:12px;color:var(--primary);display:inline-block;margin-top:8px">Ver todas →</a>`
+    : '<div class="empty">Sin entregas en el período</div>';
+}
+
+// ═══════════════════════════════════════════════
+// NAVEGACIÓN ENTRE VISTAS (#hash, se mantiene en el link)
+// ═══════════════════════════════════════════════
+const VISTAS = ['resumen', 'pendientes', 'solicitudes', 'entregas', 'senaleticas'];
+function mostrarVista() {
+  const v = location.hash.slice(1);
+  const vista = VISTAS.includes(v) ? v : 'resumen';
+  document.querySelectorAll('.view').forEach(s => s.classList.toggle('active', s.dataset.view === vista));
+  document.querySelectorAll('#sidebar a').forEach(a => a.classList.toggle('active', a.dataset.view === vista));
+}
+window.addEventListener('hashchange', () => { mostrarVista(); window.scrollTo(0, 0); });
+mostrarVista();
+bindSeg('pend-mode', m => { pendMode = m; renderPendientes(applyFilters(allJobs)); });
+
 // ── Render completo ───────────────────────────────────────
 function renderAll() {
   recomputarCostos();
   guardarFiltrosEnUrl();
   const filtered = applyFilters(allJobs);
   renderBanner(filtered);
+  renderPendientes(filtered);
+  renderEntregas(applyFilters(allJobs, { sinFecha: true }));
+  const nPend = filtered.filter(esPendiente).length;
+  document.getElementById('badge-pendientes').textContent = nPend || '';
+  document.getElementById('badge-solicitudes').textContent = filtered.length || '';
   renderKPIs(filtered);
   renderAvance(filtered);
   renderFaltantes(filtered);
@@ -1827,6 +2133,7 @@ onSnapshot(collection(db, 'inventario_stock'),
   snap => {
     stockMap = {};
     snap.docs.forEach(d => { stockMap[d.id] = parseInt(d.data().cantidad) || 0; });
+    document.getElementById('falta-card').classList.remove('sin-stock');
     if (allJobs.length > 0) renderFaltantes(applyFilters(allJobs));
   },
   err => console.warn('[stock] sin acceso a inventario_stock:', err.message)
